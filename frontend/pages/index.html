@@ -35,11 +35,20 @@
 <script src="../config.js"></script> 
 
 <script>
-    // ১. Supabase ক্লায়েন্ট তৈরি করা (এটি একবারই হবে)
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // ১. Supabase ক্লায়েন্ট তৈরি (গ্লোবাল ভেরিয়েবল)
+    // config.js থেকে SUPABASE_URL এবং SUPABASE_KEY লোড হবে
+    var client;
 
-    // ২. স্টক রিপোর্ট লোড করার ফাংশন
+    try {
+        client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        console.log("Supabase Client initialized successfully.");
+    } catch (e) {
+        console.error("Initialization error:", e);
+    }
+
+    // ২. স্টক লোড করার ফাংশন
     async function loadStock() {
+        if (!client) return;
         try {
             const { data, error } = await client.from('products').select('*').order('name');
             if (error) throw error;
@@ -60,23 +69,24 @@
                     </div>`;
             });
         } catch (err) {
-            console.error("Error:", err.message);
-            document.getElementById('product-list').innerHTML = "ডাটাবেস কানেকশন হচ্ছে না।";
+            console.error("Fetch Error:", err.message);
+            document.getElementById('product-list').innerHTML = "ডাটা লোড হচ্ছে না।";
         }
     }
 
-    // ৩. নতুন পণ্য যোগ করার ফাংশন
+    // ৩. নতুন পণ্য সেভ করার ফাংশন
     async function addNewProduct() {
-        const nameInput = document.getElementById('new-name');
-        const priceInput = document.getElementById('new-price');
-        const stockInput = document.getElementById('new-stock');
+        if (!client) {
+            alert("কানেকশন তৈরি হয়নি। অনুগ্রহ করে পেজটি রিফ্রেশ দিন।");
+            return;
+        }
 
-        const name = nameInput.value.trim();
-        const price = parseFloat(priceInput.value);
-        const stock = parseInt(stockInput.value);
+        const name = document.getElementById('new-name').value.trim();
+        const price = parseFloat(document.getElementById('new-price').value);
+        const stock = parseInt(document.getElementById('new-stock').value);
 
         if (!name || isNaN(price) || isNaN(stock)) {
-            return alert("সবগুলো ঘর ঠিকভাবে পূরণ করুন");
+            return alert("সবগুলো ঘর সঠিকভাবে পূরণ করুন");
         }
 
         try {
@@ -85,19 +95,19 @@
 
             alert("সফলভাবে সেভ হয়েছে!");
             
-            // ফর্ম খালি করা
-            nameInput.value = "";
-            priceInput.value = "";
-            stockInput.value = "";
+            // ইনপুট ক্লিয়ার করা
+            document.getElementById('new-name').value = "";
+            document.getElementById('new-price').value = "";
+            document.getElementById('new-stock').value = "";
             
-            // রিফ্রেশ ছাড়াই স্টক আপডেট
             loadStock();
         } catch (err) {
             alert("সেভ হয়নি: " + err.message);
+            console.error("Insert Error:", err);
         }
     }
 
-    // ৪. পেজ লোড হলে ফাংশন কল করা
+    // ৪. পেজ লোড হলে ফাংশন কল
     window.onload = loadStock;
 </script>
 </body>
