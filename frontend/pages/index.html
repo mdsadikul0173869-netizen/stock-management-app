@@ -35,10 +35,10 @@
 <script src="../config.js"></script> 
 
 <script>
-    // ১. Supabase ক্লায়েন্ট ইনিশিয়ালাইজেশন
+    // ১. Supabase ক্লায়েন্ট তৈরি করা (এটি একবারই হবে)
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // ২. স্টক লোড করার ফাংশন
+    // ২. স্টক রিপোর্ট লোড করার ফাংশন
     async function loadStock() {
         try {
             const { data, error } = await client.from('products').select('*').order('name');
@@ -48,7 +48,7 @@
             list.innerHTML = "";
             
             if (!data || data.length === 0) {
-                list.innerHTML = "স্টক খালি। কোনো পণ্য পাওয়া যায়নি।";
+                list.innerHTML = "স্টক খালি।";
                 return;
             }
 
@@ -65,7 +65,7 @@
         }
     }
 
-    // ৩. নতুন পণ্য সেভ করার ফাংশন
+    // ৩. নতুন পণ্য যোগ করার ফাংশন
     async function addNewProduct() {
         const nameInput = document.getElementById('new-name');
         const priceInput = document.getElementById('new-price');
@@ -76,33 +76,28 @@
         const stock = parseInt(stockInput.value);
 
         if (!name || isNaN(price) || isNaN(stock)) {
-            return alert("সবগুলো ঘর সঠিকভাবে পূরণ করুন");
+            return alert("সবগুলো ঘর ঠিকভাবে পূরণ করুন");
         }
 
         try {
-            const { error } = await client.from('products').insert([
-                { name: name, price: price, stock: stock }
-            ]);
-
+            const { error } = await client.from('products').insert([{ name, price, stock }]);
             if (error) throw error;
 
             alert("সফলভাবে সেভ হয়েছে!");
             
-            // ইনপুট ফিল্ড খালি করা
+            // ফর্ম খালি করা
             nameInput.value = "";
             priceInput.value = "";
             stockInput.value = "";
             
-            // পেজ রিফ্রেশ না করে সরাসরি লিস্ট আপডেট করা
-            loadStock(); 
-            
+            // রিফ্রেশ ছাড়াই স্টক আপডেট
+            loadStock();
         } catch (err) {
             alert("সেভ হয়নি: " + err.message);
-            console.error("Save Error:", err);
         }
     }
 
-    // ৪. পেজ লোড হলে ফাংশনটি কল হবে
+    // ৪. পেজ লোড হলে ফাংশন কল করা
     window.onload = loadStock;
 </script>
 </body>
