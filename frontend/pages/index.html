@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <title>স্টক ড্যাশবোর্ড</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #1a73e8; text-align: center; }
+        .nav-btn { background: #1a73e8; color: white; padding: 12px 20px; text-decoration: none; border-radius: 8px; display: inline-block; margin-bottom: 20px; font-weight: bold; }
+        .stock-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; font-size: 1.1rem; }
+        .add-box { background: #fff8e1; padding: 20px; border-radius: 10px; margin-top: 30px; border: 1px solid #ffe082; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .btn-save { background: #e65100; color: white; border: none; width: 100%; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="sales.html" class="nav-btn">🛒 বিক্রয় পেজে যান (Sales)</a>
+    <h1>📦 বর্তমান স্টক রিপোর্ট</h1>
+    
+    <div id="product-list">লোডিং...</div>
+
+    <div class="add-box">
+        <h3>🆕 নতুন পণ্য যুক্ত করুন</h3>
+        <input type="text" id="new-name" placeholder="পণ্যের নাম">
+        <input type="number" id="new-price" placeholder="একক মূল্য (৳)">
+        <input type="number" id="new-stock" placeholder="শুরুর স্টক সংখ্যা">
+        <button class="btn-save" onclick="addNewProduct()">পণ্য সেভ করুন</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+<script>
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadStock() {
+        const { data, error } = await client.from('products').select('*').order('name');
+        if (!error) {
+            const list = document.getElementById('product-list');
+            list.innerHTML = "";
+            data.forEach(item => {
+                list.innerHTML += `<div class="stock-item"><span>${item.name} (৳${item.price || 0})</span> <b>${item.stock} পিস</b></div>`;
+            });
+        }
+    }
+
+    async function addNewProduct() {
+        const name = document.getElementById('new-name').value;
+        const price = document.getElementById('new-price').value;
+        const stock = document.getElementById('new-stock').value;
+
+        if (!name || !price || !stock) return alert("সবগুলো ঘর পূরণ করুন");
+
+        const { error } = await client.from('products').insert([{ name, price, stock: parseInt(stock) }]);
+        if (error) alert("ভুল হয়েছে: " + error.message);
+        else {
+            alert("সফলভাবে যুক্ত হয়েছে!");
+            location.reload();
+        }
+    }
+    loadStock();
+</script>
+</body>
+</html>

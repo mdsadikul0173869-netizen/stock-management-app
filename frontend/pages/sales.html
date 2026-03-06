@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <title>বিক্রয় কেন্দ্র - মাল্টি আইটেম</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f0f2f5; padding: 20px; margin: 0; }
+        .container { max-width: 900px; margin: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .box { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #2e7d32; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        select, input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        
+        .btn-add { background: #1a73e8; color: white; border: none; width: 100%; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
+        .btn-confirm { background: #2e7d32; color: white; border: none; width: 100%; padding: 15px; border-radius: 6px; cursor: pointer; font-size: 1.1rem; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        .total-row { font-weight: bold; background: #f9f9f9; }
+
+        #print-area { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="box">
+        <h2>🛍️ পণ্য যোগ করুন</h2>
+        <label>পণ্য নির্বাচন করুন:</label>
+        <select id="select-product" onchange="updatePrice()"><option value="">বাছাই করুন</option></select>
+        
+        <label>একক মূল্য (৳):</label>
+        <input type="number" id="item-price" readonly>
+        
+        <label>পরিমাণ:</label>
+        <input type="number" id="item-qty" value="1" min="1">
+        
+        <button class="btn-add" onclick="addToCart()">কার্টে যোগ করুন ➕</button>
+        <a href="index.html" style="text-decoration:none; color:#666; font-size: 0.9rem;">← ড্যাশবোর্ডে ফিরে যান</a>
+    </div>
+
+    <div class="box">
+        <h2>🧾 বিলিং লিস্ট</h2>
+        <table id="cart-table">
+            <thead>
+                <tr>
+                    <th>পণ্য</th>
+                    <th>পরিমাণ</th>
+                    <th>মোট</th>
+                    <th>অ্যাকশন</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="2">সর্বমোট:</td>
+                    <td id="grand-total">৳ 0</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+        <br>
+        <button class="btn-confirm" onclick="confirmSale()">বিক্রি সম্পন্ন ও প্রিন্ট করুন ✅</button>
+    </div>
+</div>
+
+<div id="print-area">
+    <div style="text-align:center; padding: 30px; border: 1px solid #000; margin: 10px; font-family: sans-serif;">
+        <h2 style="margin:0;">আপনার দোকানের নাম</h2>
+        <p>ঠিকানা: আপনার এলাকা, ঢাকা | মোবাইল: ০১৭XXXXXXXX</p>
+        <hr>
+        <h3>ক্যাশ মেমো / ক্যাশ রিসিট</h3>
+        <p id="p-date" style="text-align:right;"></p>
+        <table style="width:100%; border-collapse: collapse;">
+            <thead style="border-bottom: 1px solid #000;">
+                <tr>
+                    <th style="text-align:left;">আইটেম</th>
+                    <th style="text-align:center;">পরিমাণ</th>
+                    <th style="text-align:right;">মূল্য</th>
+                </tr>
+            </thead>
+            <tbody id="print-items"></tbody>
+        </table>
+        <hr>
+        <h3 style="text-align:right;">মোট বিল: ৳ <span id="print-total"></span></h3>
+        <p style="margin-top: 30px;">ধন্যবাদ, আবার আসবেন!</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+<script>
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let cart = [];
+    let productsData = [];
+
+    // ১. প্রোডাক্ট লোড করা
+    async function loadProducts() {
+        const { data } = await client.from('products').select('*').order('name');
+        productsData = data;
+        const select = document.getElementById('select-product');
+        data.forEach(p => {
+            select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+        });
+    }
+
+    function updatePrice() {
+        const id = document.getElementById('select-product').value;
+        const product = productsData.find(p => p.id === id);
+        document.getElementById('item-price').value = product ? product.price : 0;
+    }
+
+    // ২. কার্টে পণ্য যোগ করা
+    function addToCart() {
+        const select = document.getElementById('select-product');
+        const id = select.value;
+        const name = select.options[select.selectedIndex].text;
+        const price = parseFloat(document.getElementById('item-price').value);
+        const qty = parseInt(document.getElementById('item-qty').value);
+
+        if (!id || qty <= 0) return alert("পণ্য এবং পরিমাণ সঠিক দিন");
+
+        const total = price * qty;
+        cart.push({ id, name, price, qty, total });
+        renderCart();
+    }
+
+    // ৩. কার্ট লিস্ট দেখানো
+    function renderCart() {
+        const tbody = document.querySelector("#cart-table tbody");
+        tbody.innerHTML = "";
+        let grandTotal = 0;
+
+        cart.forEach((item, index) => {
+            grandTotal += item.total;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${item.qty}</td>
+                    <td>৳ ${item.total}</td>
+                    <td><button onclick="removeItem(${index})" style="color:red; cursor:pointer; border:none; background:none;">❌</button></td>
+                </tr>`;
+        });
+        document.getElementById('grand-total').innerText = "৳ " + grandTotal;
+    }
+
+    function removeItem(index) {
+        cart.splice(index, 1);
+        renderCart();
+    }
+
+    // ৪. ডাটাবেসে সেভ এবং প্রিন্ট
+    async function confirmSale() {
+        if (cart.length === 0) return alert("কার্ট খালি!");
+
+        // ইনভয়েস টেবিলে সব আইটেম একসাথে ঢোকানো
+        const saleData = cart.map(item => ({
+            product_id: item.id,
+            sold_quantity: item.qty
+        }));
+
+        const { error } = await client.from('invoices').insert(saleData);
+
+        if (error) {
+            alert("ভুল হয়েছে: " + error.message);
+        } else {
+            // প্রিন্ট এরিয়া তৈরি
+            const printItems = document.getElementById('print-items');
+            printItems.innerHTML = "";
+            let totalBill = 0;
+
+            cart.forEach(item => {
+                totalBill += item.total;
+                printItems.innerHTML += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td style="text-align:center;">${item.qty}</td>
+                        <td style="text-align:right;">৳ ${item.total}</td>
+                    </tr>`;
+            });
+
+            document.getElementById('print-total').innerText = totalBill;
+            document.getElementById('p-date').innerText = "তারিখ: " + new Date().toLocaleString('bn-BD');
+
+            window.print();
+            alert("বিক্রি সফল হয়েছে!");
+            cart = [];
+            renderCart();
+        }
+    }
+
+    loadProducts();
+</script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>প্রফেশনাল ইনভেন্টরি ম্যানেজমেন্ট</title>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --secondary: #e65100;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, sans-serif; 
+            background-color: var(--bg); 
+            margin: 0; padding: 20px;
+        }
+
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background: var(--card); 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+        }
+
+        h1 { text-align: center; color: var(--primary); font-size: 2rem; }
+
+        .dashboard-grid { display: grid; gap: 20px; margin-top: 20px; }
+
+        .stock-card { 
+            background: #e3f2fd; 
+            padding: 20px; 
+            border-radius: 10px; 
+            border-left: 5px solid var(--primary);
+        }
+
+        .stock-item { 
+            display: flex; 
+            justify-content: space-between; 
+            padding: 10px 0; 
+            border-bottom: 1px dashed #adc6ff;
+            font-size: 1.1rem;
+        }
+
+        .form-section { 
+            padding: 25px; 
+            border-radius: 12px; 
+            margin-top: 20px;
+            border: 1px solid #ddd;
+        }
+
+        .sale-section { background-color: #f1f3f4; }
+        .add-section { background-color: #fff8e1; border-color: #ffe082; }
+
+        input, select { 
+            width: 100%; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border: 2px solid #ced4da; 
+            border-radius: 8px; 
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+        button:hover { opacity: 0.85; transform: translateY(-2px); }
+
+        /* প্রিন্ট এরিয়া */
+        #print-area { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏪 আমার স্টোর ড্যাশবোর্ড</h1>
+    
+    <div class="stock-card">
+        <h3>📦 বর্তমান স্টক রিপোর্ট</h3>
+        <div id="product-list">লোডিং হচ্ছে...</div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="form-section sale-section">
+            <h3 style="margin-top:0">💸 নতুন বিক্রি (Invoice)</h3>
+            <select id="select-product"><option value="">পণ্য সিলেক্ট করুন</option></select>
+            <input type="number" id="sale-quantity" placeholder="বিক্রির পরিমাণ (পিস)">
+            <button class="btn-primary" onclick="makeSale()">বিক্রি সম্পন্ন ও প্রিন্ট</button>
+        </div>
+
+        <div class="form-section add-section">
+            <h3 style="margin-top:0; color:var(--secondary)">🆕 নতুন পণ্য যুক্ত করুন</h3>
+            <input type="text" id="new-name" placeholder="পণ্যের নাম">
+            <input type="number" id="new-price" placeholder="একক মূল্য (Price)">
+            <input type="number" id="new-stock" placeholder="শুরুর স্টক সংখ্যা">
+            <button class="btn-secondary" onclick="addNewProduct()">পণ্য সেভ করুন</button>
+        </div>
+    </div>
+</div>
+
+<div id="print-area">
+    <div style="text-align:center; padding: 50px; border: 3px double #000; margin: 20px;">
+        <h1 style="margin:0">Arth Computer</h1>
+        <p>ঠিকানা: ঢাকা, বাংলাদেশ | ফোন: ০১৭XXXXXXXX</p>
+        <hr>
+        <h2>বিক্রয় রশিদ (INVOICE)</h2>
+        <p id="p-date" style="text-align:right"></p>
+        <table style="width:100%; border-collapse: collapse; font-size: 1.2rem;">
+            <tr style="border-bottom: 2px solid #000;">
+                <th style="text-align:left; padding: 10px;">বিবরণ</th>
+                <th style="text-align:right; padding: 10px;">পরিমাণ</th>
+            </tr>
+            <tr>
+                <td id="p-name" style="padding: 15px;"></td>
+                <td id="p-qty" style="text-align:right; padding: 15px;"></td>
+            </tr>
+        </table>
+        <div style="margin-top: 50px; text-align:center;">
+            <p>আমাদের সাথে থাকার জন্য ধন্যবাদ!</p>
+            <small>সফটওয়্যার জেনারেটেড রিসিট</small>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../config.js"></script>
+
+<script>
+    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadData() {
+        const { data, error } = await client.from('products').select('*').order('name');
+        if (!error) {
+            const list = document.getElementById('product-list');
+            const select = document.getElementById('select-product');
+            list.innerHTML = "";
+            select.innerHTML = '<option value="">পণ্য সিলেক্ট করুন</option>';
+            data.forEach(item => {
+                list.innerHTML += `<div class="stock-item"><span>${item.name} (৳${item.price || 0})</span> <b>${item.stock} পিস</b></div>`;
+                select.innerHTML += `<option value="${item.id}">${item.name}</option>`;
+            });
+        }
+    }
+
+    async function makeSale() {
+        const s = document.getElementById('select-product');
+        const id = s.value;
+        const name = s.options[s.selectedIndex].text;
+        const qty = parseInt(document.getElementById('sale-quantity').value);
+
+        if (!id || !qty) return alert("তথ্য অসম্পূর্ণ!");
+
+        const { error } = await client.from('invoices').insert([{ product_id: id, sold_quantity: qty }]);
+        if (error) alert(error.message);
+        else {
+            document.getElementById('p-name').innerText = name;
+            document.getElementById('p-qty').innerText = qty + " পিস";
+            document.getElementById('p-date').innerText = "তারিখ: " + new Date().toLocaleString('bn-BD');
+            window.print();
+            loadData();
+        }
+    }
+
+    async function addNewProduct() {
+        const name = document.getElementById('new-name').value;
+        const price = document.getElementById('new-price').value;
+        const stock = document.getElementById('new-stock').value;
+
+        if (!name || !price || !stock) return alert("সবগুলো ঘর পূরণ করুন");
+
+        const { error } = await client.from('products').insert([{ name, price, stock: parseInt(stock) }]);
+        if (error) alert("ভুল হয়েছে: " + error.message);
+        else {
+            alert("সফল!");
+            loadData();
+        }
+    }
+
+    loadData();
+</script>
+</body>
+</html>
