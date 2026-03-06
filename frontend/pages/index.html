@@ -17,7 +17,7 @@
 <body>
 
 <div class="container">
-    <a href="sales.html" class="nav-btn">🛒 বিক্রয় পেজে যান (Sales)</a>
+    <a href="sales.html" class="nav-btn">🛒 বিক্রয় পেজে যান (Sales)</a>
     <h1>📦 বর্তমান স্টক রিপোর্ট</h1>
     
     <div id="product-list">লোডিং...</div>
@@ -27,41 +27,83 @@
         <input type="text" id="new-name" placeholder="পণ্যের নাম">
         <input type="number" id="new-price" placeholder="একক মূল্য (৳)">
         <input type="number" id="new-stock" placeholder="শুরুর স্টক সংখ্যা">
-        <button class="btn-save" onclick="addNewProduct()">পণ্য সেভ করুন</button>
+        <button type="button" class="btn-save" onclick="addNewProduct()">পণ্য সেভ করুন</button>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config.js"></script>
+<script src="../config.js"></script> 
+
 <script>
+    // ১. Supabase ক্লায়েন্ট ইনিশিয়ালাইজেশন
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // ২. স্টক লোড করার ফাংশন
     async function loadStock() {
-        const { data, error } = await client.from('products').select('*').order('name');
-        if (!error) {
+        try {
+            const { data, error } = await client.from('products').select('*').order('name');
+            if (error) throw error;
+            
             const list = document.getElementById('product-list');
             list.innerHTML = "";
+            
+            if (!data || data.length === 0) {
+                list.innerHTML = "স্টক খালি। কোনো পণ্য পাওয়া যায়নি।";
+                return;
+            }
+
             data.forEach(item => {
-                list.innerHTML += `<div class="stock-item"><span>${item.name} (৳${item.price || 0})</span> <b>${item.stock} পিস</b></div>`;
+                list.innerHTML += `
+                    <div class="stock-item">
+                        <span>${item.name} (৳${item.price || 0})</span> 
+                        <b>${item.stock} পিস</b>
+                    </div>`;
             });
+        } catch (err) {
+            console.error("Error:", err.message);
+            document.getElementById('product-list').innerHTML = "ডাটাবেস কানেকশন হচ্ছে না।";
         }
     }
 
+    // ৩. নতুন পণ্য সেভ করার ফাংশন
     async function addNewProduct() {
-        const name = document.getElementById('new-name').value;
-        const price = document.getElementById('new-price').value;
-        const stock = document.getElementById('new-stock').value;
+        const nameInput = document.getElementById('new-name');
+        const priceInput = document.getElementById('new-price');
+        const stockInput = document.getElementById('new-stock');
 
-        if (!name || !price || !stock) return alert("সবগুলো ঘর পূরণ করুন");
+        const name = nameInput.value.trim();
+        const price = parseFloat(priceInput.value);
+        const stock = parseInt(stockInput.value);
 
-        const { error } = await client.from('products').insert([{ name, price, stock: parseInt(stock) }]);
-        if (error) alert("ভুল হয়েছে: " + error.message);
-        else {
-            alert("সফলভাবে যুক্ত হয়েছে!");
-            location.reload();
+        if (!name || isNaN(price) || isNaN(stock)) {
+            return alert("সবগুলো ঘর সঠিকভাবে পূরণ করুন");
+        }
+
+        try {
+            const { error } = await client.from('products').insert([
+                { name: name, price: price, stock: stock }
+            ]);
+
+            if (error) throw error;
+
+            alert("সফলভাবে সেভ হয়েছে!");
+            
+            // ইনপুট ফিল্ড খালি করা
+            nameInput.value = "";
+            priceInput.value = "";
+            stockInput.value = "";
+            
+            // পেজ রিফ্রেশ না করে সরাসরি লিস্ট আপডেট করা
+            loadStock(); 
+            
+        } catch (err) {
+            alert("সেভ হয়নি: " + err.message);
+            console.error("Save Error:", err);
         }
     }
-    loadStock();
+
+    // ৪. পেজ লোড হলে ফাংশনটি কল হবে
+    window.onload = loadStock;
 </script>
 </body>
 </html>
